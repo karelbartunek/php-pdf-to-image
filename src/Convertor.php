@@ -28,7 +28,7 @@ final class Convertor
 	 *
 	 * @throws ConvertorException
 	 */
-	public static function convert(string $pdfPath, string $savePath, string $format = 'jpg', bool $trim = false): void
+	public static function convert(string $pdfPath, string $savePath, string $format = 'jpg', bool $trim = false, array $resolution = null): void
 	{
 		if (\in_array($format = strtolower($format), self::SUPPORTED_FORMATS, true) === false) {
 			throw new \InvalidArgumentException(
@@ -40,7 +40,7 @@ final class Convertor
 			throw new ConvertorException('File "' . $pdfPath . '" does not exist.');
 		}
 		try {
-			$im = self::process($pdfPath, $savePath);
+			$im = self::process($pdfPath, $savePath, $resolution);
 			if ($trim === true) {
 				$im->setImageBorderColor('rgb(255,255,255)');
 				$im->trimImage(1);
@@ -55,14 +55,26 @@ final class Convertor
 	/**
 	 * @throws \ImagickException
 	 */
-	private static function process(string $pdfPath, string $savePath): \Imagick
+	private static function process(string $pdfPath, string $savePath, array $resolution = null): \Imagick
 	{
 		if (class_exists('\Imagick') === false) {
 			throw new \RuntimeException('Imagick is not installed.');
 		}
 
-		$im = new \Imagick($pdfPath);
-		$im->setImageFormat('jpg');
+		$im = new \Imagick();
+
+		if (isset($resolution['width']) && isset($resolution['height'])) {
+            $im->setResolution($resolution['width'], $resolution['height']);
+        }
+
+        $im->readImage($pdfPath);
+
+        if (isset($resolution['width']) && isset($resolution['height'])) {
+            $im->setImageCompressionQuality($resolution['quality'] ?? 100);
+            $im->adaptiveResizeImage($resolution['width'], $resolution['height']);
+        }
+
+        $im->setImageFormat('jpg');
 		self::write($savePath, (string) $im);
 
 		return $im;
